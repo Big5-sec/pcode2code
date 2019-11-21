@@ -1,0 +1,82 @@
+sub sub1()
+Dim MyTime, MyDate, MyStr
+MyTime = #17:04:23#
+MyDate = #January 27, 1993#
+
+' Returns current system time in the system-defined long time format.
+MyStr = Format(Time, "Long Time")
+
+' Returns current system date in the system-defined long date format.
+MyStr = Format(Date, "Long Date")
+
+MyStr = Format(MyTime, "h:m:s")    ' Returns "17:4:23".
+MyStr = Format(MyTime, "hh:mm:ss am/pm")    ' Returns "05:04:23 pm".
+MyStr = Format(MyTime, "hh:mm:ss AM/PM")    ' Returns "05:04:23 PM".
+MyStr = Format(MyDate, "dddd, mmm d yyyy")    ' Returns "Wednesday, Jan 27 1993".
+' If format is not supplied, a string is returned.
+MyStr = Format(23)    ' Returns "23".
+
+' User-defined formats.
+MyStr = Format(5459.4, "##,##0.00")    ' Returns "5,459.40".
+MyStr = Format(334.9, "###0.00")    ' Returns "334.90".
+MyStr = Format(5, "0.00%")    ' Returns "500.00%".
+MyStr = Format("HELLO", "<")    ' Returns "hello".
+MyStr = Format("This is it", ">")    ' Returns "THIS IS IT".
+
+end sub
+
+sub sub2()
+Dim MyString, MyNumber 
+Open "TESTFILE" For Input As #1    ' Open file for input. 
+Do While Not EOF(1)    ' Loop until end of file. 
+    Input #1, MyString, MyNumber    ' Read data into two variables. 
+    Debug.Print MyString, MyNumber    ' Print data to the Immediate window. 
+Loop 
+Close #1    ' Close file. 
+end sub
+
+sub sub3()
+Dim MyStr1, MyStr2, MyComp
+MyStr1 = "ABCD": MyStr2 = "abcd"    ' Define variables.
+MyComp = StrComp(MyStr1, MyStr2, 1)    ' Returns 0.
+MyComp = StrComp(MyStr1, MyStr2, 0)    ' Returns -1.
+MyComp = StrComp(MyStr2, MyStr1)    ' Returns 1.
+end sub
+
+Function MidMbcs(ByVal str as String, start, length)
+    MidMbcs = StrConv(MidB(StrConv(str, vbFromUnicode), start, length), vbUnicode)
+End Function
+
+sub sub4()
+Dim MyString
+MyString = "AbCdEfG"
+' Where "A", "C", "E", and "G" are DBCS and "b", "d", 
+' and "f" are SBCS.
+MyNewString = Mid(MyString, 3, 4)
+' Returns "CdEf"
+MyNewString = MidB(MyString, 3, 4)
+' Returns "bC"
+MyNewString = MidMbcs(MyString, 3, 4)
+' Returns "bCd"
+end sub
+
+sub sub5()
+Dim MyIndex, FileNumber
+For MyIndex = 1 To 5    ' Loop 5 times.
+    FileNumber = FreeFile    ' Get unused file
+        ' number.
+    Open "TEST" & MyIndex For Output As #FileNumber    ' Create file name.
+    Write #FileNumber, "This is a sample."    ' Output text.
+    Close #FileNumber    ' Close file.
+Next MyIndex
+end sub
+
+Sub ChangeFormColor(FormName As Form) 
+ FormName.BackColor = RGB(Rnd * 256, Rnd * 256, Rnd * 256) 
+End Sub
+
+sub sub6()
+ChangeFormColor Me 
+end sub
+
+

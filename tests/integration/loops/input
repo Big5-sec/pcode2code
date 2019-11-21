@@ -1,0 +1,39 @@
+Sub TestLoop5()
+  Dim Reponse As String
+  Reponse = InputBox("Entrez le mot de passe")
+
+  Do While Reponse <> "youpi"
+    Reponse = InputBox("Mauvaise réponse. Essayez encore")
+  Loop
+End Sub
+
+Sub TestLoop4()
+  Dim Reponse As Integer
+  MsgBox "Début" ' Une seule fois avant la boucle
+
+  Do
+    Reponse = InputBox("Entrez un chiffre")
+  Loop While Reponse = 5
+
+  MsgBox "Fin" ' Une seule fois après la boucle
+End Sub
+
+Sub TestLoop7()
+  Dim Reponse As String
+  Reponse = InputBox("Entrez le mot de passe")
+  Do Until Reponse = "youpi"
+    Reponse = InputBox("Mauvaise réponse. Essayez encore")
+  Loop
+End Sub
+
+Sub boucle_while()
+
+    Dim numero As Integer
+    numero = 1 'Numéro de départ (correspond ici au n° de ligne et au n° de numérotation)
+
+    While numero <= 12 'TANT QUE la variable numero est <= 12, la boucle est répétée
+        Cells(numero, 1) = numero 'Numérotation
+        numero = numero + 1 'Le numéro est augmenté de 1 à chaque boucle
+    Wend
+        
+End Sub

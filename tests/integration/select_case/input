@@ -1,0 +1,24 @@
+Sub Exemple_Select_Case_conditions_numeriques()
+' par Excel-Malin.com (https://excel-malin.com)
+
+'Structure Select Case: valeurs numériques (paliers)
+' = score du test
+x = Worksheets("Sheet1").Range("A1").Value
+
+'évaluation du score
+Select Case x
+    Case Is < 0
+        MsgBox "Votre score est insuffisant!"
+    Case 0 To 30
+        MsgBox "Votre score est faible."
+    Case 31 To 70
+        MsgBox "Votre score est dans la moyenne."
+    Case 71 To 100
+        MsgBox "Votre score est au-dessus de la moyenne."
+    Case Is > 100
+        MsgBox "Votre score est exceptionnel!"
+    Case Else
+        MsgBox "Il y a un problème avec votre score..."
+End Select
+
+End Sub

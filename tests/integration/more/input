@@ -1,0 +1,152 @@
+Option Compare Binary ' That is, "AAA" is less than "aaa".
+' Declare an event at module level of a class module
+Event LogonCompleted(UserName As String)
+Enum SecurityLevel
+ IllegalEntry = -1
+ SecurityLevel1 = 0
+ SecurityLevel2 = 1
+End Enum
+Type EmployeeRecord    ' Create user-defined type.
+    ID As Integer    ' Define elements of data type.
+    Name As String * 20
+    Address As String * 30
+    Phone As Long
+    HireDate As Date
+End Type
+Dim CurrentColor As Integer
+Const BLACK = 0, RED = 1, GREEN = 2, BLUE = 3
+Sub CreateRecord()
+    Dim MyRecord As EmployeeRecord    ' Declare variable.
+ 
+    ' Assignment to EmployeeRecord variable must occur in a procedure.
+    MyRecord.ID = 12003    ' Assign a value to an element.
+End Sub
+
+Sub OnErrorStatementDemo()
+ On Error GoTo ErrorHandler ' Enable error-handling routine.
+ Open "TESTFILE" For Output As #1 ' Open file for output.
+ Kill "TESTFILE" ' Attempt to delete open
+ ' file.
+ On Error GoTo 0 ' Turn off error trapping.
+ On Error Resume Next ' Defer error trapping.
+ ObjectRef = GetObject("MyWord.Basic") ' Try to start nonexistent
+ ' object, then test for
+'Check for likely Automation errors.
+ If Err.Number = 440 Or Err.Number = 432 Then
+ ' Tell user what happened. Then clear the Err object.
+ Msg = "There was an error attempting to open the Automation object!"
+ MsgBox Msg, , "Deferred Error Test"
+ Err.Clear ' Clear Err object fields
+ End If
+Exit Sub ' Exit to avoid handler.
+ErrorHandler: ' Error-handling routine.
+ Select Case Err.Number ' Evaluate error number.
+ Case 55 ' "File already open" error.
+ Close #1 ' Close open file.
+ Case Else
+ ' Handle other situations here...
+ End Select
+ Resume ' Resume execution at same line
+ ' that caused the error.
+End Sub
+
+Sub stopdemo()
+Dim i As Long
+For i = 1 To 10 ' Start For...Next loop.
+ Debug.Print i ' Print i to the Immediate window.
+ Stop ' Stop during each iteration.
+Next i
+End Sub
+
+Sub eventraisedemo()
+ ' Raise the event.
+ RaiseEvent LogonCompleted("AntoineJan")
+End Sub
+
+Sub demoWrite()
+Open "TESTFILE" For Output As #1    ' Open file for output.
+Write #1, "Hello World", 234    ' Write comma-delimited data.
+Write #1,    ' Write blank line.
+ 
+Dim MyBool, MyDate, MyNull, MyError
+' Assign Boolean, Date, Null, and Error values.
+MyBool = False: MyDate = #2/12/1969#: MyNull = Null
+MyError = CVErr(32767)
+' Boolean data is written as #TRUE# or #FALSE#. Date literals are
+' written in universal date format, for example, #1994-07-13#
+ 'represents July 13, 1994. Null data is written as #NULL#.
+' Error data is written as #ERROR errorcode#.
+Write #1, MyBool; " is a Boolean value"
+Write #1, MyDate; " is a date"
+Write #1, MyNull; " is a null value"
+Write #1, MyError; " is an error value"
+Close #1    ' Close file.
+End Sub
+
+Sub OnGosubGotoDemo()
+Dim Number, MyString
+ Number = 2 ' Initialize variable.
+ ' Branch to Sub2.
+ On Number GoSub Sub1, Sub2 ' Execution resumes here after
+ ' On...GoSub.
+ On Number GoTo Line1, Line2 ' Branch to Line2.
+ ' Execution does not resume here after On...GoTo.
+ Exit Sub
+Sub1:
+ MyString = "In Sub1": Return
+Sub2:
+ MyString = "In Sub2": Return
+Line1:
+ MyString = "In Line1"
+Line2:
+ MyString = "In Line2"
+End Sub
+
+
+Property Get PenColor() As String
+ Select Case CurrentColor
+ Case RED
+ PenColor = "Red"
+ Case GREEN
+ PenColor = "Green"
+ Case BLUE
+ PenColor = "Blue"
+ End Select
+End Property
+
+Property Let PenColor(ColorName As String)
+ Select Case ColorName ' Check color name string.
+ Case "Red"
+ CurrentColor = RED ' Assign value for Red.
+ Case "Green"
+ CurrentColor = GREEN ' Assign value for Green.
+ Case "Blue"
+ CurrentColor = BLUE ' Assign value for Blue.
+ Case Else
+ CurrentColor = BLACK ' Assign default value.
+ End Select
+End Property
+Property Set Pen(P As Object)
+ Set CurrentPen = P ' Assign Pen to object.
+End Property
+Sub debub()
+Private Const DefaultBufferSize& = 32768
+Private CRC_32_Tab(0 To 255) As Long
+Private CRC_32_Tab2(200, 255) As Long
+Dim tab_exemple()
+ReDim tab_exemple(2, 2)
+ReDim CRC_32_Tab(0 To 45)
+
+
+Dim MyVar
+MyVar = "Come see me in the Immediate pane."
+Debug.Print MyVar
+
+' The following code sets the PenColor property for a drawing package
+' by calling the Property let procedure.
+ 
+PenColor = "Red"
+ColorName = PenColor
+End Sub
+
+
