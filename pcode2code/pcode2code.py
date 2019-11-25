@@ -928,18 +928,32 @@ class Operations:
         self.opstack.push('!' + var + ' = ' + self.opstack.pop())
 
         
-    def argsmemstwith(self, *args):
+    def argsmemstwith(self, var, numparams):
         """
-        command defining a part of an object like .<prop> = <smthg> in a with
-        example: with ... .Name = "Coho Vineyard" ... end with
+        command defining a property of an object with arguments in a with statement
+        example: With ... .Name(1,2) = b ... end with
         gives:
-             # LitStr 0x000D "Coho Vineyard"
-             # MemStWith Name
+             # Ld B
+             # LitDI2 0x0001
+             # LitDI2 0x0002
+             # ArgsMemStWith Name 0x0002
         """
-        self.opstack.push('.' + var + ' = ' + self.opstack.pop())
+        nb_parameters = int(numparams, 16)
+        val = '.' + var + '('
+        params = []
+        if nb_parameters > 0:
+            for i in range(nb_parameters):
+                params.append(self.opstack.pop())
+            params = params[::-1]
+            val = val + params[0]
 
+            if nb_parameters > 1:
+                for param in params[1:]:
+                    val = val + ', ' + param
+        val += ') = ' + self.opstack.pop()
+        self.opstack.push(val)
 
-    def argsdictstwith(self, *args):
+    def argsdictstwith(self, var, *args):
         """
         command defining a part of an object like !<index> = <smthg> in a with block
         example: !Name = "Coho Vineyard"
@@ -1068,7 +1082,15 @@ class Operations:
            # Ld a43g0xT
            # ArgsMemCall run 0x0002
         """
-        val = self.opstack.pop() + '.' + args[0] + ' '
+        args = list(args)
+        parenthesis = False
+        if args[0] == '(Call)':
+            args.pop(0)
+            val = 'Call ' + self.opstack.pop() + '.' + args[0] + '('
+            parenthesis = True
+        else:
+            val = self.opstack.pop() + '.' + args[0]
+
         nb_parameters = int(args[1],16)           
         end_val = ''
             
@@ -1081,21 +1103,37 @@ class Operations:
                 val = val + params[0]
                 end_val = ')'
             else:
-                val = val + ' ' + params[0]
+                if not parenthesis:
+                    val = val + ' ' +params[0]
+                else:
+                    val = val + params[0]
             
             if nb_parameters > 1:
                 for param in params[1:]:
                     val = val + ', ' + param
+        if parenthesis == True:
+            end_val = ')'
         self.opstack.push(val + end_val)
 
-    def argsmemcallwith(self, var, numparams):
+    def argsmemcallwith(self, *args):
         """
         command when a function of an object is called in a with definition
-        example: .Show
-        gives: #ArgMemCallWith Show 0x0000
+        example: With a ... call .a(1,2) ... end with
+        gives: 
+             # LitDI2 0x0001
+             # LitDI2 0x0002
+             # ArgsMemCallWith (Call) a 0x0002
         """
-        val = '.' + var
-        nb_parameters = int(numparams,16)           
+        parenthesis = False
+        args = list(args)
+        if args[0] == '(Call)':
+            args.pop(0)
+            parenthesis = True
+            val = 'Call .' + args[0] + '('
+        else:
+            val = '.' + args[0]
+            
+        nb_parameters = int(args[1],16)           
         end_val = ''
             
         params = []
@@ -1107,11 +1145,17 @@ class Operations:
                 val = val + params[0]
                 end_val = ')'
             else:
-                val = val + ' ' + params[0]
+                if not parenthesis:
+                    val = val + ' ' + params[0]
+                else:
+                    val = val + params[0]
             
             if nb_parameters > 1:
                 for param in params[1:]:
                     val = val + ', ' + param
+
+        if parenthesis:
+            end_val = ')'
         self.opstack.push(val + end_val)
         
 
@@ -1552,7 +1596,7 @@ class Operations:
         raise Pcode2codeException('not implemented endcontext')
 
     def endfunc(self):
-        self.opstack.push('End Function\n')
+        self.opstack.push('End Function')
         self.indentlevel = self.indentlevel - 1
 
     def endif(self):
@@ -1590,7 +1634,7 @@ class Operations:
         self.indentlevel = self.indentlevel - 1
 
     def endsub(self):
-        self.opstack.push('End Sub\n')
+        self.opstack.push('End Sub')
         self.indentlevel = self.indentlevel - 1
 
     def endtype(self):
@@ -2382,7 +2426,15 @@ class Operations:
         raise Pcode2codeException('not implemented me')
             
     def meimplicit(self, *args):
-        raise Pcode2codeException('not implemented meimplicit')
+        """
+        command used when the object is the current form
+        example: Print 
+        gives:
+             # MeImplicit
+             # PrintObj
+             # PrintNL
+        """
+        self.opstack.push('MeImplicit') #just pushing a specific marker to change treatment later
             
     def memredim(self, var, numparams, *args):
         """
@@ -2721,8 +2773,16 @@ class Operations:
         """
         self.opstack.push('OptionBase')
             
-    def parambyval(self, *args):
-        raise Pcode2codeException('not implemented parambyval')
+    def parambyval(self):
+        """
+        command used when Byval keyword is used
+        example: a ByVal b
+        gives:
+             # Ld B
+             # ParamByVal
+             # ArgsCall a 0x0001
+        """
+        self.opstack.push('ByVal ' + self.opstack.pop())
             
     def paramomitted(self):
         """
@@ -2781,8 +2841,22 @@ class Operations:
         """
         self.opstack.push(',')
             
-    def printeos(self, *args):
-        raise Pcode2codeException('not implemented printeos')
+    def printeos(self):
+        """
+        used at the end of some print when there is nothing, instead of printitemnl
+        """
+        elmts = []
+        while self.opstack.size() >= 1:
+            elmts.append(self.opstack.pop())
+        elmts = elmts[::-1]
+        val = elmts[0]
+        for elmt in elmts[1:]:
+            if ((elmt == ';') or (elmt == ',')) and (elmts.index(elmt) != 1):
+                val+= elmt
+            else:
+                val += ' ' + elmt
+        self.opstack.push(val)
+
             
     def printitemcomma(self):
         """
@@ -2832,7 +2906,7 @@ class Operations:
         elmts = elmts[::-1]
         val = elmts[0]
         for elmt in elmts[1:]:
-            if elmt == ';' or elmt == ',':
+            if ((elmt == ';') or (elmt == ',')) and (elmts.index(elmt) != 1):
                 val+= elmt
             else:
                 val += ' ' + elmt
@@ -2889,7 +2963,11 @@ class Operations:
              # Ld i
              # PrintItemNL
         """
-        self.opstack.push(self.opstack.pop() + '.Print')
+        if self.opstack.top() == 'MeImplicit':
+            self.opstack.pop()
+            self.opstack.push('Print')
+        else:
+            self.opstack.push(self.opstack.pop() + '.Print')
             
     def printsemi(self, *args):
         """
@@ -3017,7 +3095,7 @@ class Operations:
         self.opstack.push(val)
 
 
-    def redim(self, var, nb_params_str, *args):
+    def redim(self, *args):
         """
         command used when redim function is used
         example : ReDim temp(4)
@@ -3026,8 +3104,14 @@ class Operations:
              # LitDI2 0x0004
              # Redim temp 0x0001 (As Variant)
         """
-        val = 'Redim ' + var + '('
-        nb_params = int(nb_params_str, 16)
+        val = ''
+        args = list(args)
+        preserve = False
+        if args[0] == '(Preserve)':
+            args.pop(0)
+            preserve = True
+
+        nb_params = int(args[1], 16)
 
         values = []
         # gather all stack
@@ -3035,6 +3119,14 @@ class Operations:
             values.append(self.opstack.pop())
         values = values[::-1]
 
+        if values[0].startswith('ReDim'): # in case redim of multiple variables
+            val = values.pop(0) + ', ' + args[0] + '('
+        else:
+            val += 'ReDim '
+            if preserve:
+                val += 'Preserve '
+            val += args[0] + '('
+            
         curr_val1 = values.pop(0)
         curr_val2 = values.pop(0)
         if curr_val1 == 'OptionBase':
@@ -3055,7 +3147,7 @@ class Operations:
         self.opstack.push(val)
 
         
-    def redimas(self, var, numparams, *args):
+    def redimas(self, *args):
         """
         command used when a redim is defined with a As in the end
         example: ReDim mytab(50) As Double
@@ -3064,8 +3156,14 @@ class Operations:
              # LitDI2 0x0032
              # RedimAs mytab 0x0001 (As Double)
         """
-        val = 'Redim ' + var + '('
-        nb_params = int(numparams, 16)
+        val = ''
+        args = list(args)
+        preserve = False
+        if args[0] == '(Preserve)':
+            args.pop(0)
+            preserve = True
+
+        nb_params = int(args[1], 16)
 
         values = []
         # gather all stack
@@ -3073,6 +3171,14 @@ class Operations:
             values.append(self.opstack.pop())
         values = values[::-1]
 
+        if values[0].startswith('ReDim'): # in case redim of multiple variables
+            val = values.pop(0) + ', ' + args[0] + '('
+        else:
+            val += 'ReDim '
+            if preserve:
+                val += 'Preserve '
+            val += args[0] + '('
+            
         curr_val1 = values.pop(0)
         curr_val2 = values.pop(0)
         if curr_val1 == 'OptionBase':
@@ -3088,18 +3194,27 @@ class Operations:
                 val += curr_val2 
             else:
                 val += curr_val1 + ' To ' + curr_val2 
+
         val += ')'
 
-        as_val = args[0][1:]
-        for arg in args[1:]:
-            as_val += ' ' + arg
-        as_val = as_val[:-1]
-
-        val+= ' ' + as_val
+        args.pop(0) #remove var
+        args.pop(0) # remove nb_params
+        if len(args)> 0: # do we have smthng like "(As <type>)"
+            print(args)
+            if args[-1] != 'Variant)':
+                val += ' ' + args[0][1:] + ' ' + args[1][:-1]
         self.opstack.push(val)
             
     def reparse(self, *args):
-        raise Pcode2codeException('not implemented reparse')
+        """
+        opcode used when a non valid statement is employed
+        """
+        val = args[1][1:]
+        for arg in args[2:]:
+            val += ' ' + arg
+        val = val[:-1] # avoid double quotes
+        self.opstack.push(val)
+
 
     def rem(self, *args):
         """
@@ -3114,9 +3229,23 @@ class Operations:
         self.opstack.push('Rem ' + val)
         
             
-    def resume(self):
-        #TODO: comment
-        self.opstack.push('Resume')
+    def resume(self, *args):
+        """
+        command used when resume keyword is used 
+        example1: Resume
+        gives: # Resume
+        example2: Resume Next
+        gives: # Resume (Next)
+        example3: Resume titi
+        gives: # Resume titi
+        """
+        if args is ():
+            self.opstack.push('Resume')
+        else:
+            if args[0] == '(Next)':
+                self.opstack.push('Resume Next')
+            else:
+                self.opstack.push('Resume ' + args[0])
             
     def return_(self):
         #TODO: comment
@@ -3150,8 +3279,18 @@ class Operations:
         """
         raise Pcode2codeException('not implemented scale')
             
-    def seek(self, *args):
-        raise Pcode2codeException('not implemented seek')
+    def seek(self):
+        """
+        opcode used when seek is used to search in a file
+        example: Seek #1, 2
+        gives:
+             # LitDI2 0x0001
+             # Sharp
+             # LitDI2 0x0002
+             # Seek
+        """
+        data = self.opstack.pop()
+        self.opstack.push('Seek ' + self.opstack.pop() + ', ' + data)
             
     def selectcase(self):
         """
@@ -3182,14 +3321,19 @@ class Operations:
         #TODO: comment
         self.opstack.push('Stop')
             
-    def type_(self, arg):
+    def type_(self, *args):
         """
         command for Type keyword, #TODO: beware because it's also used for enum keyword
         example: Type EmployeeRecord
         gives : 
            # Type EmployeeRecord
         """
-        self.opstack.push('Type ' + arg)
+        if args[0] == '(Private)':
+            self.opstack.push('Private Type ' + args[1])
+        elif args[0] == '(Public)':
+            self.opstack.push('Public Type ' + args[1])
+        else:
+            self.opstack.push('Type ' + args[0])
         self.indentincrease_future = True
             
     def unlock(self):
@@ -3226,9 +3370,18 @@ class Operations:
     # 	LitDI2 0x0000 
     # 	LitDI2 0x00FF 
     # 	VarDefn CRC_32_Tab (As Long)
-    def vardefn(self, var, *args):
+    def vardefn(self, *args):      
         ending =''
-        if len(args) != 0:
+        args = list(args) #quite ugly, but fu...
+        if args[0] == '(WithEvents)':
+            var = args.pop(0)[1:-1] + ' ' + args.pop(0)
+        else:
+            var = args.pop(0)
+
+        spaces = 1
+        if len(args) > 0:
+            if args[-1].startswith('0x'):
+                spaces = int(args.pop(-1),16) #TODO: treat spaces there
             ending = args[0]
             for arg in args[1:]:
                 ending += ' ' + arg
@@ -3290,6 +3443,7 @@ class Operations:
             if values[0] in decls: #first we check if this is the first definition
                 val += values.pop(0) + ' ' + var + '('
             elif values[0] == 'DimImplicit': #not sure about this one
+                values.pop(0)
                 val += var + '('
             else:
                 #next we check for a previous declaration
@@ -3376,23 +3530,70 @@ class Operations:
     def constfuncexpr(self, *args):
         raise Pcode2codeException('not implemented constfuncexpr')
             
-    def lbconst(self, *args):
-        raise Pcode2codeException('not implemented lbconst')
+    def lbconst(self, var):
+        """
+        opcode used when #Const is used
+        example: #Const x = y
+        gives:
+             # LbMark
+             # Ld B
+             # LbConst a
+        """
+        self.opstack.push('#Const ' + var + ' = ' + self.opstack.pop())
     
-    def lbif(self, *args):
-        raise Pcode2codeException('not implemented lbif')
+    def lbif(self):
+        """
+        opcode used when #If is used
+        example: #If a = b Then
+        gives:
+             # LbMark
+             # Ld a
+             # Ld B
+             # Eq
+             # LbIf
+        """
+        self.opstack.push('#If ' + self.opstack.pop() + ' Then')
+        self.indentincrease_future = True
     
-    def lbelse(self, *args):
-        raise Pcode2codeException('not implemented lbelse')
+    def lbelse(self):
+        """
+        opcode used when #Else is used
+        example: #Else 
+        gives: lbElse
+        """
+        self.opstack.push('#Else')
+        self.indentlevel = self.indentlevel - 1
+        self.indentincrease_future = True
             
-    def lbelseif(self, *args):
-        raise Pcode2codeException('not implemented lbelseif')
+    def lbelseif(self):
+        """
+        opcode used when #Elseif is used
+        example: #ElseIf a = c Then
+        gives:
+             # LbMark
+             # Ld a
+             # Ld c
+             # Eq
+             # LbElseIf
+        """
+        self.opstack.push('#ElseIf ' + self.opstack.pop() + ' Then')
+        self.indentlevel = self.indentlevel - 1
+        self.indentincrease_future = True
             
-    def lbendif(self, *args):
-        raise Pcode2codeException('not implemented lbendif')
+    def lbendif(self):
+        """
+        opcode used when "#End If" is used
+        example: #End If
+        gives: #LbEndIf
+        """
+        self.opstack.push('#End If')
+        self.indentlevel = self.indentlevel - 1
             
-    def lbmark(self, *args):
-        raise Pcode2codeException('not implemented lbmark')
+    def lbmark(self):
+        """
+        appears to be used to indicate the start of a lb statement, appears quite useless
+        """
+        pass #pass on purposes
 
     def endforvariable(self):
         """
@@ -3563,6 +3764,9 @@ class Parser:
                 if started:
                     opelinesblock.append(inputLine)
 
+        if opelinesblock == []:
+            opelinesblock = ['NewLine']
+            
         lines[i] = opelinesblock
         streams[laststream] = lines
 
@@ -3585,11 +3789,26 @@ class Parser:
         """
             function to process input in debug mode. Used for development only. 
         """
-        for linenum in self.myinput.keys():
-            self.operations.clearstack()
-            for opline in self.myinput[linenum]:
-                self.parseOpLine(opline)
-            self.addlineOutput(str(linenum) + ': ' + self.operations.getstacktop())
+        for stream in self.myinput.keys():
+            self.addlineOutput('stream : ' + stream, 0)
+            self.addlineOutput('########################################' + os.linesep, 0)
+            for linenum in self.myinput[stream]:
+                self.operations.clearstack()
+                for opline in self.myinput[stream][linenum]:
+                    self.parseOpLine(opline)
+                if self.operations.hasbos():
+                    output_parts = []
+                    while self.operations.getstacksize() > 0:
+                        output_parts.append(self.operations.getstackpop())
+                    output_parts = output_parts[::-1]
+                    self.addlineOutput(self.operations.getindentlevel() * '  ', linenum, False, True)
+                    for part in output_parts[:-1]:
+                        self.addlineOutput(part + ' ', linenum, has_end=False)
+                    self.addlineOutput(output_parts[-1], linenum)
+                    self.operations.resethasbos()
+                else:
+                    self.addlineOutput(self.operations.getindentlevel() * '  ' + self.operations.getstacktop(), linenum, True)
+                self.operations.increaseindentlevel_future()
 
     def processInput(self, print_linenum):
         """
@@ -3600,7 +3819,7 @@ class Parser:
         """
         for stream in self.myinput.keys():
             self.addlineOutput('stream : ' + stream, 0)
-            self.addlineOutput('########################################\n', 0)
+            self.addlineOutput('########################################' + os.linesep, 0)
             for linenum in self.myinput[stream]:
                 try:
                     self.operations.clearstack()
@@ -3628,8 +3847,6 @@ class Parser:
                     for opline in self.myinput[stream][linenum]:
                         self.addlineOutput("'\t# " + opline, linenum)
                 self.operations.increaseindentlevel_future()
-            self.addlineOutput('\n', linenum)
-
 
 def process(inputfile, outputfile=None, ispcodedump=False, linenum=False, isdebug=False):
     """

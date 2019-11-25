@@ -155,7 +155,9 @@ Before submitting an issue, please checks the following point:
 ## Known problems
 
 - all limitations of [pcodedmp](https://github.com/bontchev/pcodedmp) apply here
-- the following bytecode commands are not supported now: scale, all commands related to index, me, meimplicit, implements, any date literal or floating point literal
+- Enum are translated as Type, based on pcodedmp's output
+- the following bytecode commands are not supported now: scale, all commands related to index, implements,
+- any date literal or floating point literal is not transformed back to its original form (If you now how to transform the bytes into the literal, please contact me)
 
 ## Contributing
 
@@ -163,22 +165,23 @@ I'm fully open to any contribution, as tiny as it is. Don't hesitate to mail me 
 
 ## To be done
 
-- provide a correct contributing guide, and make the code follows coding standards
-- provide a better output (indentation, decoding all bytecode commands, ...)
-- provide a mean to detect automatically previous dump or OLE2
-- more tests...
+- Provide a correct contributing guide, and make the code follows coding standards
+- There is always room for improvement, at least, it could be good to provide all correct opcodes translation
+- Provide a mean to detect automatically previous dump or OLE2
 
 
 ## Change log
 
 21 nov 2019 : version 1.0 released
 
+25 nov 2019: version 1.1 released
+- several corrections made based on @VessOnSecurity throw-back.
 
-## contributors
+## Contributors
 
 - Zilio Nicolas, author
 
 
 ## To go further
 
-Obtaining the code might not be sufficient enough. Don't hesitate to give a try to [SourceFu](https://github.com/Big5-sec/SourceFu) to deobfuscate the code, or create a document and use [ViperMonkey](https://github.com/decalage2/ViperMonkey).
+Obtaining the code might not be sufficient enough for an easy analysis. Don't hesitate to give a try to [SourceFu](https://github.com/Big5-sec/SourceFu) to deobfuscate the code, or create a document and use [ViperMonkey](https://github.com/decalage2/ViperMonkey).
