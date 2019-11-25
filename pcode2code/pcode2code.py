@@ -21,7 +21,7 @@ import traceback
 from io import BytesIO, StringIO
 
 
-__VERSION__ = '0.1'
+__VERSION__ = '0.1.1'
 
 if sys.version_info[0] <= 2:
     # Python 2.x

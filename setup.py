@@ -42,6 +42,7 @@ setup(
     install_requires=requirements,
     license="GNU General Public License v3",
     long_description=readme + '\n\n', # + history,
+    long_description_content_type = 'text/markdown'
     include_package_data=True,
     keywords='pcode2code',
     name='pcode2code',
@@ -50,6 +51,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/Big5_sec/pcode2code',
-    version='0.1.0',
+    version='0.1.1',
     zip_safe=False,
 )
