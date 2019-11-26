@@ -18,6 +18,7 @@ from __future__ import print_function
 import sys
 import os
 import traceback
+import struct
 from io import BytesIO, StringIO
 
 
@@ -2339,11 +2340,25 @@ class Operations:
     def litoi8(self, *args):
         raise Pcode2codeException('not implemented litoi8')
             
-    def litr4(self, *args):
-        raise Pcode2codeException('not implemented litr4')
+    def litr4(self, byte1, byte2):
+        """
+        command used when a floating point on 32 bit is declared
+        """
+        val = byte2[2:]+byte1[2:]
+        if PYTHON2:
+            self.opstack.push(str(struct.unpack("!f", val.decode('hex'))[0]))
+        else:
+            self.opstack.push(str(struct.unpack("!f", bytes.fromhex(val))[0]))
             
-    def litr8(self, *args):
-        raise Pcode2codeException('not implemented litr8')
+    def litr8(self, byte1, byte2, byte3, byte4):
+        """
+        command used when a floating point on 64 bit is declared
+        """
+        val = byte4[2:]+byte3[2:]+byte2[2:]+byte1[2:]
+        if PYTHON2:
+            self.opstack.push(str(struct.unpack("!f", val.decode('hex'))[0]))
+        else:
+            self.opstack.push(str(struct.unpack("!d", bytes.fromhex(val))[0]))
             
     def litsmalli2(self, *args):
         raise Pcode2codeException('not implemented malli2')
@@ -2374,9 +2389,18 @@ class Operations:
              # LitDefault
              # Lock
         """
-        record = self.opstack.pop()
-        chan = self.opstack.pop()
-        self.opstack.push('Lock ' + chan + ', ' + record)
+        if self.opstack.size() == 3:
+            last_record = self.opstack.pop()
+            first_record = self.opstack.pop()
+            chan = self.opstack.pop()
+            self.opstack.push('Lock ' + chan + ', ' + first_record + ' To ' + last_record)
+        elif self.opstack.size() == 2:
+            record = self.opstack.pop()
+            chan = self.opstack.pop()
+            self.opstack.push('Lock ' + chan + ', ' + record)
+        elif self.opstack.size() == 1:
+            chan = self.opstack.pop()
+            self.opstack.push('Lock ' + chan)
             
     def loop(self):
         self.opstack.push('Loop')
@@ -2436,7 +2460,7 @@ class Operations:
         """
         self.opstack.push('MeImplicit') #just pushing a specific marker to change treatment later
             
-    def memredim(self, var, numparams, *args):
+    def memredim(self, *args):
         """
         command used when a property of an object is redim
         example: ReDim myobj.foo(30)
@@ -2446,13 +2470,29 @@ class Operations:
              # Ld myobj
              # MemRedim foo 0x0001 (As Variant)
         """
-        val = 'Redim ' + self.opstack.pop() + '.' + var + '('
-        nb_params = int(numparams, 16)
+        val = self.opstack.pop()
+        args = list(args)
+        preserve = False
+        if args[0] == '(Preserve)':
+            args.pop(0)
+            preserve = True
+
+        nb_params = int(args[1], 16)
+
         values = []
         # gather all stack
         while self.opstack.size() > 0:
             values.append(self.opstack.pop())
         values = values[::-1]
+
+        if values[0].startswith('ReDim'): # in case redim of multiple variables
+            val = values.pop(0) + ', ' + val + '.' + args[0] + '('
+        else:
+            val2 = 'ReDim '
+            if preserve:
+                val2 += 'Preserve '
+            val2 += val + '.' + args[0] + '('
+            val = val2
 
         curr_val1 = values.pop(0)
         curr_val2 = values.pop(0)
@@ -2472,9 +2512,8 @@ class Operations:
 
         val += ')'
         self.opstack.push(val)
-
             
-    def memredimwith(self, var, numparams, *args):
+    def memredimwith(self, *args):
         """
         command used when a property of an object is redim within a with
         example: with myobj ... ReDim .foo(30) .. end with
@@ -2483,13 +2522,28 @@ class Operations:
              # LitDI2 0x001E
              # MemRedimWith foo 0x0001 (As Variant)
         """
-        val = 'Redim .' + var + '('
-        nb_params = int(numparams, 16)
+        val = ''
+        args = list(args)
+        preserve = False
+        if args[0] == '(Preserve)':
+            args.pop(0)
+            preserve = True
+
+        nb_params = int(args[1], 16)
+
         values = []
         # gather all stack
         while self.opstack.size() > 0:
             values.append(self.opstack.pop())
         values = values[::-1]
+
+        if values[0].startswith('ReDim'): # in case redim of multiple variables
+            val = values.pop(0) + ', ' + '.' + args[0] + '('
+        else:
+            val += 'ReDim '
+            if preserve:
+                val += 'Preserve '
+            val += '.' + args[0] + '('
 
         curr_val1 = values.pop(0)
         curr_val2 = values.pop(0)
@@ -2511,7 +2565,7 @@ class Operations:
         self.opstack.push(val)
 
             
-    def memredimas(self, var, numparams, *args):
+    def memredimas(self, *args):
         """
         command used when a redim is defined on a property of an object with a As in the end
         example: ReDim myobj.mytab(50) As Double
@@ -2521,8 +2575,14 @@ class Operations:
              # Ld myobj
              # MemRedimAs Tab 0x0001 (As Double)
         """
-        val = 'Redim ' + self.opstack.pop() + '.' + var + '('
-        nb_params = int(numparams, 16)
+        val = self.opstack.pop()
+        args = list(args)
+        preserve = False
+        if args[0] == '(Preserve)':
+            args.pop(0)
+            preserve = True
+
+        nb_params = int(args[1], 16)
 
         values = []
         # gather all stack
@@ -2530,6 +2590,15 @@ class Operations:
             values.append(self.opstack.pop())
         values = values[::-1]
 
+        if values[0].startswith('ReDim'): # in case redim of multiple variables
+            val = values.pop(0) + ', ' + val + '.' + args[0] + '('
+        else:
+            val2 = 'ReDim '
+            if preserve:
+                val2 += 'Preserve '
+            val2 += val + '.' + args[0] + '('
+            val = val2
+            
         curr_val1 = values.pop(0)
         curr_val2 = values.pop(0)
         if curr_val1 == 'OptionBase':
@@ -2545,17 +2614,18 @@ class Operations:
                 val += curr_val2 
             else:
                 val += curr_val1 + ' To ' + curr_val2 
+
         val += ')'
 
-        as_val = args[0][1:]
-        for arg in args[1:]:
-            as_val += ' ' + arg
-        as_val = as_val[:-1]
-
-        val+= ' ' + as_val
+        args.pop(0) #remove var
+        args.pop(0) # remove nb_params
+        if len(args)> 0: # do we have smthng like "(As <type>)"
+            print(args)
+            if args[-1] != 'Variant)':
+                val += ' ' + args[0][1:] + ' ' + args[1][:-1]
         self.opstack.push(val)
             
-    def memredimaswith(self, var, numparams, *args):
+    def memredimaswith(self, *args):
         """
         command used when a redim is defined on a property of an object with a As in the end, within a with block
         example: With myobj ... ReDim .mytab(70) As Integer ... End With 
@@ -2564,8 +2634,14 @@ class Operations:
              # LitDI2 0x0046
              # MemRedimAsWith Tab 0x0001 (As Integer)
         """
-        val = 'Redim .' + var + '('
-        nb_params = int(numparams, 16)
+        val = ''
+        args = list(args)
+        preserve = False
+        if args[0] == '(Preserve)':
+            args.pop(0)
+            preserve = True
+
+        nb_params = int(args[1], 16)
 
         values = []
         # gather all stack
@@ -2573,6 +2649,14 @@ class Operations:
             values.append(self.opstack.pop())
         values = values[::-1]
 
+        if values[0].startswith('ReDim'): # in case redim of multiple variables
+            val = values.pop(0) + ', ' + '.' + args[0] + '('
+        else:
+            val += 'ReDim '
+            if preserve:
+                val += 'Preserve '
+            val += '.' + args[0] + '('
+            
         curr_val1 = values.pop(0)
         curr_val2 = values.pop(0)
         if curr_val1 == 'OptionBase':
@@ -2588,14 +2672,15 @@ class Operations:
                 val += curr_val2 
             else:
                 val += curr_val1 + ' To ' + curr_val2 
+
         val += ')'
 
-        as_val = args[0][1:]
-        for arg in args[1:]:
-            as_val += ' ' + arg
-        as_val = as_val[:-1]
-
-        val+= ' ' + as_val
+        args.pop(0) #remove var
+        args.pop(0) # remove nb_params
+        if len(args)> 0: # do we have smthng like "(As <type>)"
+            print(args)
+            if args[-1] != 'Variant)':
+                val += ' ' + args[0][1:] + ' ' + args[1][:-1]
         self.opstack.push(val)
             
     def mid(self):
@@ -3347,9 +3432,19 @@ class Operations:
              # LitDefault
              # Unlock
         """
-        record = self.opstack.pop()
-        chan = self.opstack.pop()
-        self.opstack.push('Unlock ' + chan + ', ' + record)
+        if self.opstack.size() == 3:
+            last_record = self.opstack.pop()
+            first_record = self.opstack.pop()
+            chan = self.opstack.pop()
+            self.opstack.push('Unlock ' + chan + ', ' + first_record + ' To ' + last_record)
+        elif self.opstack.size() == 2:
+            record = self.opstack.pop()
+            chan = self.opstack.pop()
+            self.opstack.push('Unlock ' + chan + ', ' + record)
+        elif self.opstack.size() == 1:
+            chan = self.opstack.pop()
+            self.opstack.push('Unlock ' + chan)
+
 
 
     # Dim hiz7dgus As String
