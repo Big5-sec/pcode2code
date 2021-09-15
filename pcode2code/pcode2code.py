@@ -1487,7 +1487,7 @@ class Operations:
     def dim(self, *args):
         # args is a tuple, we treat it only when its not empty
         # example of args : (As String), (As Long)...
-        if args is not ():
+        if args != ():
             val = args[0]
             for arg in args[1:]:
                 val += ' ' + arg
@@ -3324,7 +3324,7 @@ class Operations:
         example3: Resume titi
         gives: # Resume titi
         """
-        if args is ():
+        if args == ():
             self.opstack.push('Resume')
         else:
             if args[0] == '(Next)':
